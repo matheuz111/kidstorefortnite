@@ -66,8 +66,9 @@ function pickImage({ it, entry, bundleImage, fallback }) {
     it?.images?.featured ||
     it?.images?.icon ||
     it?.images?.smallIcon ||
-    it?.albumArt || // Para canciones
+    it?.albumArt ||
     it?.image ||
+    entry?.newDisplayAsset?.materialInstances?.[0]?.images?.Background ||
     entry?.newDisplayAsset?.renderImages?.[0]?.image ||
     fallback ||
     "/placeholder.png"
@@ -75,20 +76,11 @@ function pickImage({ it, entry, bundleImage, fallback }) {
 }
 
 function isActiveNow(entry) {
-  const now = Date.now();
-  const start = entry?.inDate ? Date.parse(entry.inDate) : null;
-  const end = entry?.outDate ? Date.parse(entry.outDate) : null;
-  if (start && now < start) return false;
-  if (end && now > end) return false;
-  return true;
+  return true; 
 }
 
 function titleForSection(entry) {
-  return entry?.layout?.name || entry?.layout?.id || entry?.offerTag?.text || "General";
-}
-
-function makeItemId(kind, entry, it, index = 0) {
-    return it?.id || `${entry.offerId}#${kind}#${index}`;
+  return entry?.layout?.name || "Destacados";
 }
 
 function extractSectionsFromEntries(payload) {
@@ -111,62 +103,76 @@ function extractSectionsFromEntries(payload) {
     
     const finalPrice = entry.finalPrice || 0;
 
-    if (entry.bundle && entry.bundle.name) {
-      const bundleId = makeItemId('bundle', entry, entry.bundle, 0);
-      if (!seenIds.has(bundleId)) {
-        sectionsMap.get(sectionTitle).push({
-          id: bundleId,
-          name: entry.bundle.name,
-          image: entry.bundle.image || pickImage({ it: {}, entry }),
-          vbucks: finalPrice,
-          rarity: "Paquete",
-          rarityTag: "legendary", // Los lotes suelen destacarse
-          expiresAt: entry.outDate || null,
-          bgGradient: gradientCss(gradientFrom(entry, "legendary")),
-          vbuckIcon,
-        });
-        seenIds.add(bundleId);
-      }
-    } 
-    else if (entry.brItems && entry.brItems.length > 0) {
-      entry.brItems.forEach((item, index) => {
-        if (!item || !item.id || seenIds.has(item.id)) return;
-        
-        const rarityTag = (item.rarity?.value || 'common').toLowerCase();
-        sectionsMap.get(sectionTitle).push({
-          id: item.id,
-          name: item.name,
-          image: pickImage({ it: item, entry }),
-          vbucks: finalPrice,
-          rarity: item.rarity?.displayValue || "Común",
-          rarityTag: rarityTag,
-          expiresAt: entry.outDate || null,
-          bgGradient: gradientCss(gradientFrom(entry, rarityTag)),
-          vbuckIcon,
-        });
-        seenIds.add(item.id);
-      });
-    }
-    else if (entry.tracks && entry.tracks.length > 0) {
-      entry.tracks.forEach((track, index) => {
-        const trackId = makeItemId('track', entry, track, index);
-        if (!track || seenIds.has(trackId)) return;
+    const processAndPush = (item, type, rarityGuess = 'common') => {
+      const itemId = item.id || `${entry.offerId}#${type}#${item.name || item.title}`;
+      if (!itemId || seenIds.has(itemId)) return;
 
-        sectionsMap.get(sectionTitle).push({
-          id: trackId,
-          name: track.title,
-          image: track.albumArt || pickImage({ it: track, entry }),
-          vbucks: finalPrice,
-          rarity: "Pista de improvisación",
-          rarityTag: 'rare', // Asignamos una rareza para el color
-          expiresAt: entry.outDate || null,
-          bgGradient: gradientCss(gradientFrom(entry, 'rare')),
-          vbuckIcon,
-        });
-        seenIds.add(trackId);
+      const rarityTag = (item.rarity?.value || item.series?.backendValue || rarityGuess).toLowerCase();
+      
+      sectionsMap.get(sectionTitle).push({
+        id: itemId,
+        name: item.name || item.title || "Objeto",
+        image: pickImage({ it: item, entry }),
+        vbucks: finalPrice,
+        rarity: item.rarity?.displayValue || item.series?.value || "Común",
+        rarityTag: rarityTag,
+        expiresAt: entry.outDate || null,
+        bgGradient: gradientCss(gradientFrom(entry, rarityTag)),
+        vbuckIcon: vbuckIcon,
+        set: item.set,
+        type: item.type,
       });
+      seenIds.add(itemId);
+    };
+
+    if (entry.bundle && entry.bundle.name) {
+      processAndPush({
+        ...entry.bundle,
+        id: entry.offerId, 
+        set: { value: entry.bundle.name }, 
+        type: { backendValue: 'AthenaBundle' } 
+      }, 'bundle', 'legendary');
+    } else {
+      const brItems = entry.brItems || [];
+      const hasOutfit = brItems.some(item => item.type?.value === 'outfit');
+      const isSingleItemOutfit = hasOutfit && brItems.length <= 2; 
+
+      if (isSingleItemOutfit) {
+        const outfit = brItems.find(item => item.type?.value === 'outfit');
+        if (outfit) processAndPush(outfit, 'cosmetic');
+      } else {
+        brItems.forEach(item => processAndPush(item, 'cosmetic'));
+      }
+
+      (entry.tracks || []).forEach(track => processAndPush(track, 'track', 'rare'));
+      (entry.legoKits || []).forEach(kit => processAndPush(kit, 'lego', 'uncommon'));
+      (entry.cars || []).forEach(carItem => processAndPush(carItem, 'car', carItem.rarity?.value || 'rare'));
     }
   }
+  
+  const itemTypeOrder = [
+    'AthenaBundle', 'AthenaCharacter', 'AthenaBackpack', 'AthenaPickaxe', 
+    'AthenaGlider', 'AthenaItemWrap', 'AthenaDance',
+  ];
+
+  sectionsMap.forEach((items) => {
+    items.sort((a, b) => {
+      const setNameA = a.set?.value || 'zzzz';
+      const setNameB = b.set?.value || 'zzzz';
+      if (setNameA < setNameB) return -1;
+      if (setNameA > setNameB) return 1;
+
+      const typeA = a.type?.backendValue || '';
+      const typeB = b.type?.backendValue || '';
+      const indexA = itemTypeOrder.indexOf(typeA);
+      const indexB = itemTypeOrder.indexOf(typeB);
+      if (indexA !== -1 && indexB !== -1) {
+        if (indexA < indexB) return -1;
+        if (indexA > indexB) return 1;
+      }
+      return a.name.localeCompare(b.name);
+    });
+  });
 
   const sections = order.map(title => ({
     title: title,
@@ -191,36 +197,32 @@ export async function fetchShopDual(langKey = "ES") {
   const { sections: altSecs } = extractSectionsFromEntries(alt);
 
   const altIndex = new Map();
-  for (const s of altSecs) {
-    for (const it of s.items) {
-      altIndex.set(it.id, it);
-    }
-  }
-
+  for (const s of altSecs) for (const it of s.items) altIndex.set(it.id, it);
+  
   const merged = mainSecs.map((sec) => {
-    const firstItemId = sec.items[0]?.id;
     let altSecTitle = sec.title;
-    if (firstItemId) {
-        for (const altSec of altSecs) {
-            if (altSec.items.some(altItem => altItem.id === firstItemId)) {
-                altSecTitle = altSec.title;
-                break;
-            }
+    const firstMainItem = sec.items[0];
+    if (firstMainItem) {
+      for (const altSec of altSecs) {
+        if (altSec.items.some(altItem => altItem.id === firstMainItem.id)) {
+          altSecTitle = altSec.title;
+          break;
         }
+      }
     }
 
     return {
-        titleEs: mainKey === "ES" ? sec.title : altSecTitle,
-        titleEn: mainKey === "EN" ? sec.title : altSecTitle,
-        items: sec.items.map((it) => {
-            const altIt = altIndex.get(it.id);
-            return {
-                ...it,
-                nameEs: mainKey === "ES" ? it.name : (altIt?.name || it.name),
-                nameEn: mainKey === "EN" ? it.name : (altIt?.name || it.name),
-                vbuckIcon: it.vbuckIcon || vbuckIcon || null,
-            };
-        }),
+      titleEs: mainKey === "ES" ? sec.title : altSecTitle,
+      titleEn: mainKey === "EN" ? sec.title : altSecTitle,
+      items: sec.items.map((it) => {
+        const altIt = altIndex.get(it.id);
+        return {
+          ...it,
+          nameEs: mainKey === "ES" ? it.name : (altIt?.name || it.name),
+          nameEn: mainKey === "EN" ? it.name : (altIt?.name || it.name),
+          vbuckIcon: it.vbuckIcon || vbuckIcon || null,
+        };
+      }),
     };
   });
 
