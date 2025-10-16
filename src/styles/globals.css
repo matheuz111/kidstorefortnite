@@ -1,0 +1,138 @@
+/* ==============================
+   BURBANK FONTS (OTF VERSION)
+============================== */
+
+@font-face {
+  font-family: "Burbank Big";
+  src: url("/fonts/BurbankBigRegular-Black.otf") format("opentype");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Burbank Small";
+  src: url("/fonts/BurbankSmall-Black.otf") format("opentype");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Burbank Small";
+  src: url("/fonts/BurbankSmall-Bold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Burbank Small";
+  src: url("/fonts/BurbankSmall-Medium.otf") format("opentype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ==============================
+   TAILWIND BASE
+============================== */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==============================
+   GLOBAL STYLES
+============================== */
+:root { color-scheme: dark; }
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: #0f1115;
+  color: #fff;
+}
+
+/* Renderizado nítido y optimizado */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-kerning: normal;
+  font-synthesis: none;
+}
+
+/* ==============================
+   APLICACIÓN GLOBAL DE FUENTE
+============================== */
+* {
+  font-family: "Burbank Small", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif !important;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Burbank Big", "Burbank Small", sans-serif !important;
+  font-weight: 900 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+/* ==============================
+   ESTILO FORTNITE TITULARES
+============================== */
+.title-fn {
+  font-family: "Burbank Big", "Burbank Small", sans-serif !important;
+  font-weight: 900 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  line-height: 1.08;
+  text-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.5),
+    0 0 15px rgba(255, 255, 255, 0.12);
+  -webkit-text-stroke: 1px rgba(0, 0, 0, 0.45);
+}
+
+/* Subtítulos / Chips */
+.chip-fn {
+  font-family: "Burbank Small", sans-serif !important;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
+}
+
+/* ==============================
+   ELEMENTOS REUTILIZABLES
+============================== */
+.container-app { @apply max-w-[1200px] mx-auto px-4; }
+.card { @apply bg-[#151823] rounded-2xl shadow-lg border border-white/10 p-4; }
+.badge { @apply inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold; }
+
+.sep-xs { height: 8px; }
+.sep-sm { height: 12px; }
+.sep-md { height: 20px; }
+.sep-lg { height: 28px; }
+
+/* ==============================
+   RESPONSIVE
+============================== */
+@media (max-width: 1024px) {
+  h1 { font-size: 2rem; }
+  .container-app { @apply px-3; }
+}
+
+@media (max-width: 768px) {
+  h1 { font-size: 1.75rem; }
+  body { font-size: 0.95rem; }
+  .card { @apply p-3; }
+}
+
+@media (max-width: 480px) {
+  h1 { font-size: 1.5rem; }
+  body { font-size: 0.9rem; }
+  .container-app { @apply px-2; }
+}
+
+/* Transiciones */
+button, a { transition: all 0.25s ease-in-out; }

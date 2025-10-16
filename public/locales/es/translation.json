@@ -1,0 +1,7 @@
+{
+  "title": "TIENDA DE FORTNITE",
+  "loading": "Cargando tienda...",
+  "no_results": "No hay resultados para tu búsqueda.",
+  "error": "Error al cargar la tienda.",
+  "creator_code": "CÓDIGO DE CREADOR: {{code}}"
+}

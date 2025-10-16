@@ -1,0 +1,19 @@
+{
+  "title": "TIENDA DE FORTNITE",
+  "creatorCode": "CÓDIGO DE CREADOR: {{code}}",
+  "price_per_100": "Precio por 100 Pavos",
+  "pen": "S/ {{price}}",
+  "usd": "$ {{price}}",
+  "eur": "€ {{price}}",
+  "demo_item": "Cosmético de prueba",
+  "disclaimer": "⚠️ Este no es un sistema de envíos de regalos automatizado. Los regalos se gestionan manualmente contactándonos por nuestras redes.",
+  "todayHours": "Horario de hoy",
+  "open": "Abierto ahora",
+  "closed": "Cerrado ahora",
+  "timezone": "Zona horaria",
+  "filters": "Filtros",
+  "settings": "Ajustes",
+  "loading": "Cargando tienda...",
+  "no_results": "No hay resultados para tu búsqueda.",
+  "error": "Error al cargar la tienda"
+}

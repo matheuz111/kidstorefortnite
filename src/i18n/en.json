@@ -1,0 +1,19 @@
+{
+  "title": "FORTNITE ITEM SHOP",
+  "creatorCode": "CREATOR CODE: {{code}}",
+  "price_per_100": "Price per 100 V-Bucks",
+  "pen": "S/ {{price}}",
+  "usd": "$ {{price}}",
+  "eur": "€ {{price}}",
+  "demo_item": "Demo cosmetic",
+  "disclaimer": "⚠️ This is not an automated gifting system. Gifts are handled manually by contacting us on our social networks.",
+  "todayHours": "Today's hours",
+  "open": "Open now",
+  "closed": "Closed now",
+  "timezone": "Time zone",
+  "filters": "Filters",
+  "settings": "Settings",
+  "loading": "Loading shop...",
+  "no_results": "No results found.",
+  "error": "Error loading the shop"
+}
