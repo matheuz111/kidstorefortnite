@@ -2,27 +2,7 @@ import { useMemo } from "react";
 import { useShop } from "../hooks/useShop";
 import useCountdown from "../hooks/useCountdown";
 import { FaWhatsapp, FaTelegramPlane, FaFacebookF, FaDiscord } from "react-icons/fa";
-
-/* Conversión: precio por 100 V-Bucks */
-const PER_100 = { PEN: 1.5, USD: 0.45, EUR: 0.40 };
-
-function vbucksToFiat(vb, currency, lang = "es") {
-  const per100 = PER_100[currency];
-  if (!per100) return null;
-  const amount = (Number(vb || 0) / 100) * per100;
-
-  const locale =
-    currency === "USD" ? "en-US" :
-    currency === "EUR" ? (lang.startsWith("en") ? "en-IE" : "es-ES") :
-    "es-PE";
-
-  return new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 2,
-    minimumFractionDigits: 2,
-  }).format(amount);
-}
+import { formatCurrency, vbuckToCurrency } from "../lib/pricing";
 
 const enc = (s) => {
   try { return encodeURIComponent(s); } catch { return s; }
@@ -37,15 +17,31 @@ export default function ItemCard({ item }) {
       ? (item?.nameEn || item?.nameEs || item?.name || "Item")
       : (item?.nameEs || item?.nameEn || item?.name || "Objeto");
 
+  //precio condicional
+  let displayPrice = "";
+  if (item.isRealMoney) {
+    if (typeof item.realPrices === 'string') {
+      displayPrice = item.realPrices; 
+    } else if (item.realPrices && typeof item.realPrices[currency] !== 'undefined') {
+      displayPrice = formatCurrency(item.realPrices[currency], currency);
+    } else {
+      displayPrice = lang === 'en' ? "In Store" : "En Tienda";
+    }
+  } else {
+    // Para V-Bucks, usamos la función que convierte y luego formatea
+    displayPrice = formatCurrency(vbuckToCurrency(item.vbucks, currency), currency);
+  }
+
   const vb = item?.vbucks ?? 0;
-  const fiat = vbucksToFiat(vb, currency, lang);
   const { label: timeLeft, isOver } = useCountdown(item?.expiresAt);
 
   const shareText = useMemo(() => {
-    const es = `Hola, quiero este objeto: ${name} — ${vb} VB${fiat ? ` (${fiat})` : ""}`;
-    const en = `Hi! I'm interested in: ${name} — ${vb} VB${fiat ? ` (${fiat})` : ""}`;
+    // Usamos 'displayPrice' para asegurar que el mensaje de compartir sea correcto
+    const priceText = item.isRealMoney ? displayPrice : `${vb.toLocaleString()} VB (${displayPrice})`;
+    const es = `Hola, quiero este objeto: ${name} — ${priceText}`;
+    const en = `Hi! I'm interested in: ${name} — ${priceText}`;
     return lang === "en" ? en : es;
-  }, [name, vb, fiat, lang]);
+  }, [name, item, vb, displayPrice, lang]);
 
   const waNumber = "51983454837";
   const links = {
@@ -102,25 +98,28 @@ export default function ItemCard({ item }) {
               fontWeight: 900,
               fontSize: "1.02rem",
               textShadow: "0 2px 4px rgba(0,0,0,.8), 0 0 12px rgba(255,255,255,.07)",
+              transform: 'skewX(-2deg) translateX(-5px)',
             }}
           >
             {name}
           </div>
 
-          <div className="mt-1 flex items-center gap-1">
-            <img src={vbIcon} alt="VB" className="h-4 w-4 object-contain" />
-            <span
-              className="text-white"
-              style={{
-                fontFamily: "'Burbank Small',sans-serif",
-                fontWeight: 800,
-                fontSize: "0.98rem",
-                textShadow: "0 1px 2px rgba(0,0,0,.65)",
-              }}
-            >
-              {vb.toLocaleString()} VB
-            </span>
-          </div>
+          {!item.isRealMoney && vb > 0 && (
+            <div className="mt-1 flex items-center gap-1">
+              <img src={vbIcon} alt="VB" className="h-4 w-4 object-contain" />
+              <span
+                className="text-white"
+                style={{
+                  fontFamily: "'Burbank Small',sans-serif",
+                  fontWeight: 800,
+                  fontSize: "0.98rem",
+                  textShadow: "0 1px 2px rgba(0,0,0,.65)",
+                }}
+              >
+                {vb.toLocaleString()} VB
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -134,7 +133,7 @@ export default function ItemCard({ item }) {
             textShadow: "0 1px 2px rgba(0,0,0,.55)",
           }}
         >
-          {fiat ?? (lang === "en" ? "N/A" : "N/D")}
+          {displayPrice ?? (lang === "en" ? "N/A" : "N/D")}
         </span>
       </div>
 

@@ -44,11 +44,9 @@ function gradientFrom(entry, rarityTag) {
   const c2 = hexify(entry?.colors?.color2);
   const c3 = hexify(entry?.colors?.color3);
   if (c1 && c2 && c3) return [c1, c2, c3];
-
   const mat = entry?.tileBackgroundMaterial || entry?.newDisplayAsset?.tileBackgroundMaterial;
   const hinted = materialHintToGradient(mat);
   if (hinted) return hinted;
-
   const key = String(rarityTag || "common").toLowerCase();
   return RARITY_GRADIENTS[key] || RARITY_GRADIENTS.common;
 }
@@ -62,14 +60,13 @@ function gradientCss(parts) {
 }
 
 /* ---------- helpers de parsing ---------- */
-
 function pickImage({ it, entry, bundleImage, fallback }) {
   return (
     bundleImage ||
     it?.images?.featured ||
     it?.images?.icon ||
     it?.images?.smallIcon ||
-    it?.albumArt ||
+    it?.albumArt || // Para canciones
     it?.image ||
     entry?.newDisplayAsset?.renderImages?.[0]?.image ||
     fallback ||
@@ -91,31 +88,19 @@ function titleForSection(entry) {
 }
 
 function makeItemId(kind, entry, it, index = 0) {
-  const offer = entry?.offerId || entry?.devName || "offer";
-  switch (kind) {
-    case "bundle":   return `${offer}#bundle`;
-    case "track":    return it?.id || `${offer}#track:${it?.title || it?.devName || index}`;
-    case "lego":     return it?.id || `${offer}#lego:${it?.name || index}`;
-    case "cosmetic": return it?.id || `${offer}#cos:${it?.templateId || it?.devName || index}`;
-    default:         return it?.id || `${offer}#fallback`;
-  }
+    return it?.id || `${entry.offerId}#${kind}#${index}`;
 }
 
-/**
- * PARSER principal de la tienda del día (sin filtros restrictivos).
- * Incluye BR, Bundles, Jam Tracks, LEGO… todo lo que traiga /v2/shop.
- */
 function extractSectionsFromEntries(payload) {
   const root = payload?.data;
   if (!root) return { sections: [], vbuckIcon: null };
 
   const vbuckIcon = root?.vbuckIcon || null;
-  const raw = Array.isArray(root.entries) ? root.entries : [];
-  const entries = raw.filter(isActiveNow); // si no hay fechas, se considera vigente
+  const entries = (root.entries || []).filter(isActiveNow);
 
   const sectionsMap = new Map();
   const order = [];
-  const seen = new Set();
+  const seenIds = new Set();
 
   for (const entry of entries) {
     const sectionTitle = titleForSection(entry);
@@ -123,128 +108,77 @@ function extractSectionsFromEntries(payload) {
       sectionsMap.set(sectionTitle, []);
       order.push(sectionTitle);
     }
+    
+    const finalPrice = entry.finalPrice || 0;
 
-    const finalPrice =
-      entry?.finalPrice ??
-      entry?.regularPrice ??
-      entry?.price?.finalPrice ??
-      entry?.price ??
-      0;
-
-    const push = (norm, rarityGuess) => {
-      const uid = norm.uid;
-      if (!uid || seen.has(uid)) return;
-
-      const rarityTag = String(
-        norm.series?.backendValue ||
-        norm.rarity?.value ||
-        norm.rarity ||
-        rarityGuess ||
-        "common"
-      ).toLowerCase();
-
-      const bgParts = gradientFrom(entry, rarityTag);
-
-      sectionsMap.get(sectionTitle).push({
-        id: uid,
-        name: norm.name || "Objeto desconocido",
-        image: pickImage({ it: norm, entry, bundleImage: norm.bundleImage }),
-        rarity: norm.series?.value || norm.rarity?.displayValue || norm.rarity?.value || norm.rarity || "Común",
-        rarityTag,
-        vbucks: norm.vbucks ?? finalPrice ?? 800,
-        expiresAt: entry?.outDate || null,
-        bgGradient: gradientCss(bgParts),
-        vbuckIcon,
-      });
-
-      seen.add(uid);
-    };
-
-    // Bundles
-    if (entry?.bundle?.name) {
-      push(
-        {
-          uid: makeItemId("bundle", entry),
+    if (entry.bundle && entry.bundle.name) {
+      const bundleId = makeItemId('bundle', entry, entry.bundle, 0);
+      if (!seenIds.has(bundleId)) {
+        sectionsMap.get(sectionTitle).push({
+          id: bundleId,
           name: entry.bundle.name,
-          bundleImage: entry.bundle?.image,
+          image: entry.bundle.image || pickImage({ it: {}, entry }),
           vbucks: finalPrice,
-        },
-        "legendary"
-      );
-    }
-
-    // Jam Tracks
-    if (Array.isArray(entry.tracks) && entry.tracks.length) {
-      entry.tracks.forEach((tr, i) =>
-        push(
-          {
-            uid: makeItemId("track", entry, tr, i),
-            name: tr?.title || tr?.devName,
-            albumArt: tr?.albumArt,
-            vbucks: finalPrice,
-          },
-          "rare"
-        )
-      );
-    }
-
-    // LEGO
-    if (Array.isArray(entry.legoKits) && entry.legoKits.length) {
-      entry.legoKits.forEach((kit, i) =>
-        push(
-          {
-            uid: makeItemId("lego", entry, kit, i),
-            name: kit?.name,
-            images: { icon: kit?.images?.small },
-            vbucks: finalPrice,
-          },
-          "epic"
-        )
-      );
-    }
-
-    // Cosméticos
-    if (Array.isArray(entry.items) && entry.items.length) {
-      entry.items.forEach((it, i) =>
-        push(
-          {
-            uid: makeItemId("cosmetic", entry, it, i),
-            name: it?.name || it?.devName,
-            images: it?.images,
-            rarity: it?.rarity,
-            series: it?.series,
-            vbucks: it?.price ?? finalPrice,
-          },
-          it?.rarity?.value || it?.rarity
-        )
-      );
-    }
-
-    // Fallback (por si acaso)
-    if (!sectionsMap.get(sectionTitle).length) {
-      push(
-        {
-          uid: makeItemId("fallback", entry),
-          name: entry?.layout?.name || entry?.devName || "Oferta",
-          image: entry?.newDisplayAsset?.renderImages?.[0]?.image,
+          rarity: "Paquete",
+          rarityTag: "legendary", // Los lotes suelen destacarse
+          expiresAt: entry.outDate || null,
+          bgGradient: gradientCss(gradientFrom(entry, "legendary")),
+          vbuckIcon,
+        });
+        seenIds.add(bundleId);
+      }
+    } 
+    else if (entry.brItems && entry.brItems.length > 0) {
+      entry.brItems.forEach((item, index) => {
+        if (!item || !item.id || seenIds.has(item.id)) return;
+        
+        const rarityTag = (item.rarity?.value || 'common').toLowerCase();
+        sectionsMap.get(sectionTitle).push({
+          id: item.id,
+          name: item.name,
+          image: pickImage({ it: item, entry }),
           vbucks: finalPrice,
-        },
-        "common"
-      );
+          rarity: item.rarity?.displayValue || "Común",
+          rarityTag: rarityTag,
+          expiresAt: entry.outDate || null,
+          bgGradient: gradientCss(gradientFrom(entry, rarityTag)),
+          vbuckIcon,
+        });
+        seenIds.add(item.id);
+      });
+    }
+    else if (entry.tracks && entry.tracks.length > 0) {
+      entry.tracks.forEach((track, index) => {
+        const trackId = makeItemId('track', entry, track, index);
+        if (!track || seenIds.has(trackId)) return;
+
+        sectionsMap.get(sectionTitle).push({
+          id: trackId,
+          name: track.title,
+          image: track.albumArt || pickImage({ it: track, entry }),
+          vbucks: finalPrice,
+          rarity: "Pista de improvisación",
+          rarityTag: 'rare', // Asignamos una rareza para el color
+          expiresAt: entry.outDate || null,
+          bgGradient: gradientCss(gradientFrom(entry, 'rare')),
+          vbuckIcon,
+        });
+        seenIds.add(trackId);
+      });
     }
   }
 
-  const sections = [];
-  for (const title of order) {
-    const items = sectionsMap.get(title) || [];
-    if (items.length) sections.push({ title, items });
-  }
+  const sections = order.map(title => ({
+    title: title,
+    items: sectionsMap.get(title) || []
+  })).filter(sec => sec.items.length > 0);
+
   return { sections, vbuckIcon };
 }
 
+
 /* ---------- API fusion ES/EN ---------- */
 export async function fetchShopDual(langKey = "ES") {
-  // langKey SIEMPRE decide qué API se usa para los textos principales
   const mainKey = langKey === "EN" ? "EN" : "ES";
   const altKey  = mainKey === "EN" ? "ES" : "EN";
 
@@ -256,30 +190,39 @@ export async function fetchShopDual(langKey = "ES") {
   const { sections: mainSecs, vbuckIcon } = extractSectionsFromEntries(main);
   const { sections: altSecs } = extractSectionsFromEntries(alt);
 
-  // índice alterno para traducir nombres por id
   const altIndex = new Map();
-  for (const s of altSecs) for (const it of s.items) altIndex.set(it.id, it);
+  for (const s of altSecs) {
+    for (const it of s.items) {
+      altIndex.set(it.id, it);
+    }
+  }
 
-  // devolvemos títulos tal cual del idioma actual (al cambiar, se re-fetch)
-  const merged = mainSecs.map((sec) => ({
-    titleEs: sec.title,
-    titleEn: sec.title,
-    items: sec.items.map((it) => {
-      const altIt = altIndex.get(it.id);
-      return {
-        id: it.id,
-        nameEs: mainKey === "ES" ? it.name : (altIt?.name || it.name),
-        nameEn: mainKey === "EN" ? it.name : (altIt?.name || it.name),
-        image: it.image,
-        vbucks: it.vbucks,
-        rarity: it.rarity,
-        rarityTag: it.rarityTag,
-        expiresAt: it.expiresAt || null,
-        bgGradient: it.bgGradient || null,
-        vbuckIcon: it.vbuckIcon || vbuckIcon || null,
-      };
-    }),
-  }));
+  const merged = mainSecs.map((sec) => {
+    const firstItemId = sec.items[0]?.id;
+    let altSecTitle = sec.title;
+    if (firstItemId) {
+        for (const altSec of altSecs) {
+            if (altSec.items.some(altItem => altItem.id === firstItemId)) {
+                altSecTitle = altSec.title;
+                break;
+            }
+        }
+    }
+
+    return {
+        titleEs: mainKey === "ES" ? sec.title : altSecTitle,
+        titleEn: mainKey === "EN" ? sec.title : altSecTitle,
+        items: sec.items.map((it) => {
+            const altIt = altIndex.get(it.id);
+            return {
+                ...it,
+                nameEs: mainKey === "ES" ? it.name : (altIt?.name || it.name),
+                nameEn: mainKey === "EN" ? it.name : (altIt?.name || it.name),
+                vbuckIcon: it.vbuckIcon || vbuckIcon || null,
+            };
+        }),
+    };
+  });
 
   if (import.meta?.env?.DEV) {
     const total = merged.reduce((a, s) => a + s.items.length, 0);

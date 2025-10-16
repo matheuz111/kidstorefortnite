@@ -13,6 +13,7 @@ import SearchBar from "./components/SearchBar";
 import ErrorBoundary from "./components/ErrorBoundary";
 import ContactDock from "./components/ContactDock";
 import { useShopData } from "./hooks/useShopData";
+import { specialBundles } from "./lib/mockBundles"; 
 
 function Page() {
   const { t, i18n } = useTranslation();
@@ -20,7 +21,7 @@ function Page() {
   const { sections, loading, err } = useShopData();
   const isEN = (i18n.language || "es").startsWith("en");
 
-  const filtered = useMemo(() => {
+  const filteredApiSections = useMemo(() => {
     const q = (query || "").trim().toLowerCase();
     if (!q) return sections;
     return sections
@@ -34,41 +35,38 @@ function Page() {
       })
       .filter((sec) => (sec.items || []).length > 0);
   }, [sections, query]);
+  
+  const specialOfferItems = useMemo(() => {
+    return specialBundles.map(bundle => ({
+      ...bundle,
+      isRealMoney: true,
+      realPrices: bundle.price,
+      vbucks: 0,
+      rarity: "epic",
+      bgGradient: "linear-gradient(135deg, #5c2ab3 0%, #2a0066 100%)",
+    }));
+  }, []);
 
   return (
     <div>
       <Navbar />
-
-      {/* Título */}
       <div className="container-app mt-10 text-center">
         <h2 className="title-fn text-3xl md:text-4xl">{t("title")}</h2>
       </div>
       <div className="sep-md" />
-
-      {/* Aviso */}
       <DisclaimerBar />
       <div className="sep-md" />
-
-      {/* Horario + búsqueda */}
       <HoursWidget />
       <div className="sep-sm" />
       <SearchBar />
-
-      {/* Estados */}
-      {loading && (
-        <div className="container-app mt-8 opacity-70">{t("loading")}</div>
-      )}
-      {err && !loading && (
-        <div className="container-app mt-8 text-red-400">{err}</div>
-      )}
-      {!loading && !err && filtered.length === 0 && (
+      
+      {/* Secciones de la API*/}
+      {loading && <div className="container-app mt-8 opacity-70">{t("loading")}</div>}
+      {err && !loading && <div className="container-app mt-8 text-red-400">{err}</div>}
+      {!loading && !err && filteredApiSections.length === 0 && (
         <div className="container-app mt-8 opacity-70">{t("no_results")}</div>
       )}
-
-      {/* Secciones */}
-      {!loading &&
-        !err &&
-        filtered.map((sec, i) => (
+      {!loading && !err && filteredApiSections.map((sec, i) => (
           <div key={`${sec.titleEs || "SEC"}-${i}`}>
             <SectionHeader
               title={isEN ? sec.titleEn || sec.titleEs : sec.titleEs || sec.titleEn}
@@ -77,10 +75,17 @@ function Page() {
             <ShopGrid items={sec.items || []} />
           </div>
         ))}
+        
+      {/* Sección de Lotes y Ofertas Especiales (AHORA ESTÁ AL FINAL) */}
+      <div>
+        <SectionHeader
+          title={isEN ? "Special Offers & Bundles" : "Lotes y Ofertas Especiales"}
+          count={specialOfferItems.length}
+        />
+        <ShopGrid items={specialOfferItems} />
+      </div>
 
       <div className="h-16" />
-
-      {/* Dock flotante de contacto */}
       <ContactDock />
     </div>
   );
