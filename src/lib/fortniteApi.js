@@ -78,9 +78,9 @@ function isActiveNow(entry) {
   return true; 
 }
 
-// SOLUCIÓN: Esta es la función corregida para obtener el título de la sección
 function titleForSection(entry) {
-  return entry?.layout?.name || entry?.category || "Destacados";
+  // Se añaden más comprobaciones para encontrar el nombre de la sección
+  return entry?.section?.name || entry?.layout?.name || entry?.displayName || "Destacados";
 }
 
 function extractSectionsFromEntries(payload) {
@@ -140,10 +140,14 @@ function extractSectionsFromEntries(payload) {
       brItems.forEach(i => seenCosmeticIds.add(i.id));
       legoItems.forEach(i => seenCosmeticIds.add(i.id));
     } else {
-      brItems.forEach(item => processAndPush(item, 'cosmetic'));
+      (entry.brItems || []).forEach(item => processAndPush(item, 'cosmetic'));
       (entry.tracks || []).forEach(track => processAndPush(track, 'track', 'rare'));
       (entry.legoKits || []).forEach(kit => processAndPush(kit, 'lego', 'uncommon'));
       (entry.cars || []).forEach(carItem => processAndPush(carItem, 'car', carItem.rarity?.value || 'rare'));
+      
+      // SOLUCIÓN: Añadimos un bucle para el array genérico 'items'.
+      // Esto capturará los accesorios de vehículos y otros cosméticos que no encajan en las categorías anteriores.
+      (entry.items || []).forEach(item => processAndPush(item, 'cosmetic'));
     }
   }
   
