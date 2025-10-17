@@ -14,6 +14,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import ContactDock from "./components/ContactDock";
 import { useShopData } from "./hooks/useShopData";
 import { specialBundles } from "./lib/mockBundles"; 
+import { vbucksBundles } from "./lib/mockVBucks.js"; // ✨ 1. IMPORTAMOS LOS DATOS NUEVOS
 
 function Page() {
   const { t, i18n } = useTranslation();
@@ -47,6 +48,19 @@ function Page() {
     }));
   }, []);
 
+  // ✨ 2. PROCESAMOS LOS DATOS DE V-BUCKS PARA QUE SEAN COMPATIBLES
+  const vbucksOfferItems = useMemo(() => {
+    return vbucksBundles.map(bundle => ({
+      ...bundle,
+      isRealMoney: true,
+      realPrices: bundle.price,
+      vbucks: 0,
+      rarity: "rare", // Puedes ajustar la rareza si quieres otro color de fondo
+      bgGradient: "linear-gradient(135deg, #1a8ac4 0%, #0c4a7a 100%)",
+    }));
+  }, []);
+
+
   return (
     <div>
       <Navbar />
@@ -76,13 +90,22 @@ function Page() {
           </div>
         ))}
         
-      {/* Sección de Lotes y Ofertas Especiales (AHORA ESTÁ AL FINAL) */}
+      {/* Sección de Lotes y Ofertas Especiales */}
       <div>
         <SectionHeader
           title={isEN ? "Special Offers & Bundles" : "Lotes y Ofertas Especiales"}
           count={specialOfferItems.length}
         />
         <ShopGrid items={specialOfferItems} />
+      </div>
+
+      {/* ✨ 3. RENDERIZAMOS LA NUEVA SECCIÓN DE V-BUCKS */}
+      <div>
+        <SectionHeader
+          title={isEN ? "V-Bucks" : "Pavos"}
+          count={vbucksOfferItems.length}
+        />
+        <ShopGrid items={vbucksOfferItems} />
       </div>
 
       <div className="h-16" />
