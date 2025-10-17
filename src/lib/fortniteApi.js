@@ -59,7 +59,6 @@ function gradientCss(parts) {
     : `linear-gradient(180deg, ${a} 0%, ${b} 100%)`;
 }
 
-/* ---------- helpers de parsing ---------- */
 function pickImage({ it, entry, bundleImage, fallback }) {
   return (
     bundleImage ||
@@ -79,8 +78,9 @@ function isActiveNow(entry) {
   return true; 
 }
 
+// SOLUCIÓN: Esta es la función corregida para obtener el título de la sección
 function titleForSection(entry) {
-  return entry?.layout?.name || "Destacados";
+  return entry?.layout?.name || entry?.category || "Destacados";
 }
 
 function extractSectionsFromEntries(payload) {
@@ -92,7 +92,7 @@ function extractSectionsFromEntries(payload) {
 
   const sectionsMap = new Map();
   const order = [];
-  const seenIds = new Set();
+  const seenCosmeticIds = new Set(); 
 
   for (const entry of entries) {
     const sectionTitle = titleForSection(entry);
@@ -104,15 +104,16 @@ function extractSectionsFromEntries(payload) {
     const finalPrice = entry.finalPrice || 0;
 
     const processAndPush = (item, type, rarityGuess = 'common') => {
-      const itemId = item.id || `${entry.offerId}#${type}#${item.name || item.title}`;
-      if (!itemId || seenIds.has(itemId)) return;
-
+      const cosmeticId = item.id || entry.offerId;
+      if (type !== 'bundle' && seenCosmeticIds.has(cosmeticId)) {
+        return;
+      }
       const rarityTag = (item.rarity?.value || item.series?.backendValue || rarityGuess).toLowerCase();
       
       sectionsMap.get(sectionTitle).push({
-        id: itemId,
+        id: `${entry.offerId}-${cosmeticId}`,
         name: item.name || item.title || "Objeto",
-        image: pickImage({ it: item, entry }),
+        image: pickImage({ it: item, entry, bundleImage: entry.bundle?.image }),
         vbucks: finalPrice,
         rarity: item.rarity?.displayValue || item.series?.value || "Común",
         rarityTag: rarityTag,
@@ -122,28 +123,24 @@ function extractSectionsFromEntries(payload) {
         set: item.set,
         type: item.type,
       });
-      seenIds.add(itemId);
+      seenCosmeticIds.add(cosmeticId);
     };
 
-    if (entry.bundle && entry.bundle.name) {
-      processAndPush({
-        ...entry.bundle,
-        id: entry.offerId, 
-        set: { value: entry.bundle.name }, 
-        type: { backendValue: 'AthenaBundle' } 
-      }, 'bundle', 'legendary');
+    const brItems = entry.brItems || [];
+    const legoItems = entry.legoKits || [];
+    const isExplicitBundle = entry.bundle && entry.bundle.name;
+    const isUnnamedBundle = !isExplicitBundle && (brItems.length > 1 || legoItems.length > 1);
+
+    if (isExplicitBundle) {
+      processAndPush({ ...entry.bundle, id: entry.offerId }, 'bundle', 'legendary');
+      (entry.items || []).forEach(i => seenCosmeticIds.add(i.id));
+    } else if (isUnnamedBundle) {
+      const mainItem = brItems.find(it => it.type?.value === 'outfit') || legoItems[0] || brItems[0];
+      processAndPush({ ...mainItem, id: entry.offerId, name: mainItem.name }, 'bundle', mainItem.rarity?.value || 'epic');
+      brItems.forEach(i => seenCosmeticIds.add(i.id));
+      legoItems.forEach(i => seenCosmeticIds.add(i.id));
     } else {
-      const brItems = entry.brItems || [];
-      const hasOutfit = brItems.some(item => item.type?.value === 'outfit');
-      const isSingleItemOutfit = hasOutfit && brItems.length <= 2; 
-
-      if (isSingleItemOutfit) {
-        const outfit = brItems.find(item => item.type?.value === 'outfit');
-        if (outfit) processAndPush(outfit, 'cosmetic');
-      } else {
-        brItems.forEach(item => processAndPush(item, 'cosmetic'));
-      }
-
+      brItems.forEach(item => processAndPush(item, 'cosmetic'));
       (entry.tracks || []).forEach(track => processAndPush(track, 'track', 'rare'));
       (entry.legoKits || []).forEach(kit => processAndPush(kit, 'lego', 'uncommon'));
       (entry.cars || []).forEach(carItem => processAndPush(carItem, 'car', carItem.rarity?.value || 'rare'));
