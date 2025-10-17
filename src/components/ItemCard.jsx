@@ -10,6 +10,7 @@ const enc = (s) => {
 
 export default function ItemCard({ item }) {
   const { currency, lang } = useShop();
+  const isVBucksCard = item.id.startsWith("vbucks-");
 
   // ✅ nombre según idioma elegido
   const name =
@@ -139,17 +140,19 @@ export default function ItemCard({ item }) {
 
       {/* Tiempo + iconos — centrados */}
       <div className="flex flex-col items-center justify-between">
-        <div
-          className="mt-1 text-white"
-          style={{
-            fontFamily: "'Burbank Small',sans-serif",
-            fontWeight: 800,
-            textShadow: "0 1px 2px rgba(0,0,0,.6)",
-          }}
-        >
-          <span role="img" aria-label="time">🕑</span>{" "}
-          {item?.expiresAt && !isOver ? timeLeft : (lang === "en" ? "Unavailable" : "Sin fecha")}
-        </div>
+        { !isVBucksCard && (
+         <div
+            className="mt-1 text-white"
+            style={{
+              fontFamily: "'Burbank Small',sans-serif",
+              fontWeight: 800,
+              textShadow: "0 1px 2px rgba(0,0,0,.6)",
+            }}
+          >
+            <span role="img" aria-label="time">🕑</span>{" "}
+            {item?.expiresAt && !isOver ? timeLeft : (lang === "en" ? "Unavailable" : "Sin fecha")}
+            </div>
+              )}
 
         <div className="mb-2 flex items-center justify-center gap-3">
           <a href={links.wa} target="_blank" rel="noreferrer" title="WhatsApp"
